@@ -1,0 +1,177 @@
+rules:
+  # --- Management plane / SSH ---
+  - id: CIS-JUNOS-ADM-001
+    name: 'Root login via SSH is disabled'
+    check: either_or
+    patterns:
+      - 'set system services ssh root-login deny'
+      - 'root-login deny'
+    remediation: 'Disable root SSH login: set system services ssh root-login deny.'
+    fix_type: Quick
+    manual_hint: 'Check: show configuration system services ssh | display set'
+
+  - id: CIS-JUNOS-ADM-002
+    name: 'SSH service is configured'
+    check: regex_present
+    patterns:
+      - 'set system services ssh'
+    remediation: 'Enable SSH for management and restrict to management networks.'
+    fix_type: Quick
+
+  - id: CIS-JUNOS-ADM-003
+    name: 'Telnet service is disabled'
+    check: regex_absent
+    patterns:
+      - 'set system services telnet'
+    remediation: 'Disable telnet: delete system services telnet.'
+    fix_type: Quick
+
+  - id: CIS-JUNOS-ADM-004
+    name: 'Web management HTTP is disabled (manual if HTTPS used)'
+    check: regex_absent
+    patterns:
+      - 'set system services web-management http'
+    remediation: 'Disable web-management over HTTP; if required use HTTPS only and restrict by firewall filters.'
+    fix_type: Quick
+    manual_hint: 'If web-management is required, prefer HTTPS only and restrict exposure.'
+
+  - id: CIS-JUNOS-ADM-005
+    name: 'SSH rate limiting / connection hardening (manual)'
+    check: manual
+    manual_hint: 'Verify ssh connection-limit, rate-limit, and/or client-alive settings per standard.'
+    remediation: 'Harden SSH service settings to mitigate brute force and idle sessions.'
+    fix_type: Involved
+
+  - id: CIS-JUNOS-ADM-006
+    name: 'Login banner is configured'
+    check: either_or
+    patterns:
+      - 'set system login message'
+      - 'set system login announcement'
+    remediation: 'Configure an approved legal warning banner.'
+    fix_type: Quick
+
+  # --- AAA / auth ---
+  - id: CIS-JUNOS-AAA-001
+    name: 'Central authentication is configured (RADIUS/TACACS+)'
+    check: either_or
+    patterns:
+      - 'set system radius-server'
+      - 'set system tacplus-server'
+    remediation: 'Configure RADIUS or TACACS+ for centralized authentication.'
+    fix_type: Involved
+    manual_hint: 'Verify authentication-order includes radius/tacplus and local fallback is controlled.'
+
+  - id: CIS-JUNOS-AAA-002
+    name: 'Authentication order includes centralized AAA (manual)'
+    check: manual
+    manual_hint: 'Check: set system authentication-order [ radius tacplus password ] as per policy.'
+    remediation: 'Set authentication-order to prefer centralized AAA with controlled local fallback.'
+    fix_type: Involved
+
+  - id: CIS-JUNOS-AAA-003
+    name: 'Minimum password length and complexity policy (manual)'
+    check: manual
+    manual_hint: 'Verify password policy configuration and user class restrictions per standard.'
+    remediation: 'Enforce strong password policy and least privilege for admin classes.'
+    fix_type: Planned
+
+  # --- Logging / monitoring ---
+  - id: CIS-JUNOS-LOG-001
+    name: 'Remote syslog host is configured'
+    check: regex_present
+    patterns:
+      - 'set system syslog host'
+    remediation: 'Configure remote syslog to SIEM and set appropriate log levels.'
+    fix_type: Quick
+
+  - id: CIS-JUNOS-LOG-002
+    name: 'Local syslog files are configured (messages/interactive-commands) (manual)'
+    check: manual
+    manual_hint: 'Verify system syslog file messages and interactive-commands include appropriate severities.'
+    remediation: 'Configure local syslog files for operational visibility and auditing.'
+    fix_type: Quick
+
+  - id: CIS-JUNOS-LOG-003
+    name: 'Login events are logged (manual)'
+    check: manual
+    manual_hint: 'Verify system syslog includes authorization and login events and is forwarded to SIEM.'
+    remediation: 'Enable logging for authentication and authorization events.'
+    fix_type: Involved
+
+  # --- Time ---
+  - id: CIS-JUNOS-TIME-001
+    name: 'NTP is configured'
+    check: regex_present
+    patterns:
+      - 'set system ntp server'
+    remediation: 'Configure at least two NTP servers.'
+    fix_type: Quick
+
+  - id: CIS-JUNOS-TIME-002
+    name: 'NTP authentication is enabled (manual)'
+    check: manual
+    manual_hint: 'Verify NTP authentication keys/trusted keys are configured if required by policy.'
+    remediation: 'Enable NTP authentication and configure trusted keys.'
+    fix_type: Involved
+
+  # --- SNMP ---
+  - id: CIS-JUNOS-SNMP-001
+    name: 'SNMP communities are not configured (prefer SNMPv3)'
+    check: regex_absent
+    patterns:
+      - 'set snmp community'
+    remediation: 'Remove SNMP communities and use SNMPv3 with authPriv; restrict manager IPs.'
+    fix_type: Involved
+    manual_hint: 'If SNMP required, configure SNMPv3 and access restrictions.'
+
+  - id: CIS-JUNOS-SNMP-002
+    name: 'SNMPv3 is configured (manual)'
+    check: manual
+    manual_hint: 'Verify SNMPv3 VACM, USM users, authPriv algorithms, and manager IP restrictions.'
+    remediation: 'Implement SNMPv3 authPriv and restrict to approved managers.'
+    fix_type: Involved
+
+  # --- Network hardening ---
+  - id: CIS-JUNOS-NET-001
+    name: 'ICMP redirects are disabled (manual)'
+    check: manual
+    manual_hint: 'Verify forwarding-options or interface settings mitigate unnecessary ICMP redirects as per design.'
+    remediation: 'Disable ICMP redirects where appropriate to reduce attack surface.'
+    fix_type: Planned
+
+  - id: CIS-JUNOS-NET-002
+    name: 'Source address validation / uRPF where applicable (manual)'
+    check: manual
+    manual_hint: 'Validate rpf-check and anti-spoofing measures on edge interfaces per design.'
+    remediation: 'Implement anti-spoofing controls and strict filtering at the edge.'
+    fix_type: Planned
+
+  # --- L2 protections (EX/QFX switching) ---
+  - id: CIS-JUNOS-L2-001
+    name: 'DHCP snooping is enabled (manual)'
+    check: manual
+    manual_hint: 'Verify ethernet-switching-options secure-access-port dhcp-trusted and snooping configuration per VLAN.'
+    remediation: 'Enable DHCP snooping and trust only uplinks to DHCP servers.'
+    fix_type: Involved
+
+  - id: CIS-JUNOS-L2-002
+    name: 'ARP inspection / DAI equivalent is enabled (manual)'
+    check: manual
+    manual_hint: 'Verify arp-inspection or equivalent features are enabled where supported.'
+    remediation: 'Enable ARP inspection to mitigate ARP spoofing.'
+    fix_type: Involved
+
+  - id: CIS-JUNOS-L2-003
+    name: 'Storm control is configured on access ports (manual)'
+    check: manual
+    manual_hint: 'Verify storm-control on access interfaces (broadcast/multicast) per baseline.'
+    remediation: 'Enable storm-control thresholds to mitigate broadcast storms.'
+    fix_type: Involved
+
+  - id: CIS-JUNOS-L2-004
+    name: 'Unused ports are disabled (manual)'
+    check: manual
+    manual_hint: 'Verify unused interfaces are disabled and assigned to an unused VLAN.'
+    remediation: 'Disable unused switch ports and assign to unused VLAN.'
+    fix_type: Involved

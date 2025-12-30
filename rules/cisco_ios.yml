@@ -1,1 +1,286 @@
+rules:
+  # --- Management plane / AAA ---
+  - id: CIS-CISCO-ADM-001
+    name: 'Telnet is disabled (VTY accepts SSH only)'
+    check: regex_absent
+    patterns:
+      - '^\s*transport input\s+telnet\b'
+      - '^\s*transport input\s+all\b'
+    remediation: 'Configure VTY lines to use SSH only: under line vty set transport input ssh. Disable Telnet.'
+    fix_type: Quick
+    manual_hint: 'Verify all VTY lines do not permit telnet.'
 
+  - id: CIS-CISCO-ADM-002
+    name: 'SSH v2 is enforced'
+    check: regex_present
+    patterns:
+      - '^\s*ip ssh version\s+2\b'
+    remediation: 'Enable SSH v2: ip ssh version 2.'
+    fix_type: Quick
+
+  - id: CIS-CISCO-ADM-003
+    name: 'HTTP server is disabled'
+    check: regex_absent
+    patterns:
+      - '^\s*ip http server\b'
+    remediation: 'Disable HTTP server: no ip http server.'
+    fix_type: Quick
+
+  - id: CIS-CISCO-ADM-004
+    name: 'HTTPS server exposure is controlled (manual)'
+    check: manual
+    manual_hint: 'If ip http secure-server is enabled, restrict it to mgmt VRF / ACL and disable on untrusted segments.'
+    remediation: 'Prefer disabling web management; if required, use HTTPS only and restrict by ACL/VRF.'
+    fix_type: Involved
+
+  - id: CIS-CISCO-AAA-001
+    name: 'AAA is enabled'
+    check: regex_present
+    patterns:
+      - '^\s*aaa new-model\b'
+    remediation: 'Enable AAA: aaa new-model and define authz/authc/accounting.'
+    fix_type: Quick
+
+  - id: CIS-CISCO-AAA-002
+    name: 'AAA uses TACACS+ or RADIUS for authentication'
+    check: either_or
+    patterns:
+      - '^\s*tacacs-server host\s+\S+'
+      - '^\s*radius-server host\s+\S+'
+      - '^\s*radius server\s+\S+'
+    remediation: 'Configure centralized AAA (TACACS+/RADIUS) and set authentication order appropriately.'
+    fix_type: Involved
+    manual_hint: 'Verify server definitions, shared secrets, and authentication/authorization methods.'
+
+  - id: CIS-CISCO-AAA-003
+    name: 'AAA accounting is enabled (exec/commands)'
+    check: either_or
+    patterns:
+      - '^\s*aaa accounting exec\s+\S+'
+      - '^\s*aaa accounting commands\s+\d+\s+\S+'
+    remediation: 'Enable AAA accounting for exec sessions and privileged commands.'
+    fix_type: Involved
+    manual_hint: 'Ensure accounting points to TACACS+/RADIUS and covers privileged command levels.'
+
+  - id: CIS-CISCO-ADM-005
+    name: 'VTY access is restricted (access-class allowlist)'
+    check: regex_present
+    patterns:
+      - '^\s*access-class\s+\S+\s+in\b'
+    remediation: 'Apply management ACL to VTY lines with access-class <ACL> in.'
+    fix_type: Involved
+    manual_hint: 'Ensure access-class is configured under all VTY line blocks.'
+
+  - id: CIS-CISCO-ADM-006
+    name: 'Exec-timeout is configured (console/VTY)'
+    check: regex_present
+    patterns:
+      - '^\s*exec-timeout\s+\d+\s+\d+\b'
+    remediation: 'Set idle session timeout under console and VTY lines.'
+    fix_type: Quick
+    manual_hint: 'Verify exec-timeout exists under all line console/vty blocks.'
+
+  - id: CIS-CISCO-ADM-007
+    name: 'Login banner is configured'
+    check: either_or
+    patterns:
+      - '^\s*banner\s+login\b'
+      - '^\s*banner\s+motd\b'
+    remediation: 'Configure an approved legal warning banner.'
+    fix_type: Quick
+
+  - id: CIS-CISCO-ADM-008
+    name: 'Enable secret is configured (not enable password)'
+    check: regex_present
+    patterns:
+      - '^\s*enable secret\s+'
+    remediation: 'Use enable secret (strong, hashed) rather than enable password.'
+    fix_type: Quick
+    manual_hint: 'Also verify no enable password is configured.'
+
+  - id: CIS-CISCO-ADM-009
+    name: 'Enable password is NOT configured'
+    check: regex_absent
+    patterns:
+      - '^\s*enable password\s+'
+    remediation: 'Remove enable password and use enable secret.'
+    fix_type: Quick
+
+  - id: CIS-CISCO-ADM-010
+    name: 'User accounts use secret (not password)'
+    check: regex_absent
+    patterns:
+      - '^\s*username\s+\S+\s+password\s+'
+    remediation: 'Use username <name> secret <hash/secret> and avoid plaintext/weak password types.'
+    fix_type: Quick
+    manual_hint: 'Verify usernames are configured with secret and appropriate privilege levels.'
+
+  # --- Logging / monitoring ---
+  - id: CIS-CISCO-LOG-001
+    name: 'Remote syslog is configured'
+    check: either_or
+    patterns:
+      - '^\s*logging host\s+\S+'
+      - '^\s*logging\s+\d+\.\d+\.\d+\.\d+'
+    remediation: 'Configure remote syslog to SIEM.'
+    fix_type: Quick
+
+  - id: CIS-CISCO-LOG-002
+    name: 'Logging trap level is configured (manual)'
+    check: manual
+    manual_hint: 'Verify logging trap severity and facility align with SIEM requirements (e.g., informational or notice).'
+    remediation: 'Set appropriate logging trap level and ensure critical events are forwarded.'
+    fix_type: Quick
+
+  - id: CIS-CISCO-LOG-003
+    name: 'Timestamps are enabled for logs'
+    check: either_or
+    patterns:
+      - '^\s*service timestamps log datetime'
+      - '^\s*service timestamps debug datetime'
+    remediation: 'Enable service timestamps log/debug datetime for accurate event correlation.'
+    fix_type: Quick
+
+  - id: CIS-CISCO-LOG-004
+    name: 'Login success/failure logging is enabled (manual)'
+    check: manual
+    manual_hint: 'Validate login events are logged (e.g., login on-success/on-failure) depending on platform support.'
+    remediation: 'Enable login logging where supported and forward to SIEM.'
+    fix_type: Involved
+
+  # --- Time / crypto ---
+  - id: CIS-CISCO-TIME-001
+    name: 'NTP is configured'
+    check: regex_present
+    patterns:
+      - '^\s*ntp server\s+\S+'
+    remediation: 'Configure at least two NTP servers.'
+    fix_type: Quick
+
+  - id: CIS-CISCO-TIME-002
+    name: 'NTP authentication is enabled (manual)'
+    check: manual
+    manual_hint: 'Verify NTP authentication keys and trusted keys are configured if required by policy.'
+    remediation: 'Enable NTP authentication and configure trusted keys.'
+    fix_type: Involved
+
+  # --- SNMP ---
+  - id: CIS-CISCO-SNMP-001
+    name: 'SNMP v1/v2c communities are not configured (prefer SNMPv3)'
+    check: regex_absent
+    patterns:
+      - '^\s*snmp-server community\b'
+    remediation: 'Remove SNMP communities; configure SNMPv3 authPriv and restrict manager IPs.'
+    fix_type: Involved
+    manual_hint: 'If SNMP required, verify SNMPv3 users/groups and ACL restrictions.'
+
+  - id: CIS-CISCO-SNMP-002
+    name: 'SNMPv3 is configured (manual)'
+    check: manual
+    manual_hint: 'Verify snmp-server group ... v3 priv and snmp-server user ... v3 auth priv with strong algorithms.'
+    remediation: 'Implement SNMPv3 authPriv and restrict to approved manager IPs.'
+    fix_type: Involved
+
+  # --- Network hardening ---
+  - id: CIS-CISCO-NET-001
+    name: 'CDP is disabled globally (or controlled)'
+    check: either_or
+    patterns:
+      - '^\s*no cdp run\b'
+    remediation: 'Disable CDP globally unless required; disable per-interface on untrusted segments.'
+    fix_type: Quick
+    manual_hint: 'If CDP is required, disable on untrusted ports and validate exposure.'
+
+  - id: CIS-CISCO-NET-002
+    name: 'LLDP is controlled (manual)'
+    check: manual
+    manual_hint: 'If LLDP is enabled, restrict to trusted access ports and disable on untrusted segments.'
+    remediation: 'Disable LLDP where not needed; otherwise restrict exposure.'
+    fix_type: Quick
+
+  - id: CIS-CISCO-NET-003
+    name: 'IP source routing is disabled'
+    check: either_or
+    patterns:
+      - '^\s*no ip source-route\b'
+    remediation: 'Disable IP source routing: no ip source-route.'
+    fix_type: Quick
+    manual_hint: 'If not present, validate platform defaults.'
+
+  - id: CIS-CISCO-NET-004
+    name: 'ICMP redirects are disabled on L3 interfaces (manual)'
+    check: manual
+    manual_hint: 'Validate no ip redirects is set on routed interfaces/SVIs where appropriate.'
+    remediation: 'Disable ICMP redirects on L3 interfaces: no ip redirects.'
+    fix_type: Involved
+
+  - id: CIS-CISCO-NET-005
+    name: 'Unicast RPF is enabled where appropriate (manual)'
+    check: manual
+    manual_hint: 'Validate ip verify unicast source reachable-via is used on edge-facing interfaces as per design.'
+    remediation: 'Enable uRPF on edge interfaces to reduce spoofing where routing allows.'
+    fix_type: Planned
+
+  # --- L2 protections (switching) ---
+  - id: CIS-CISCO-L2-001
+    name: 'BPDU Guard default is enabled for PortFast'
+    check: either_or
+    patterns:
+      - '^\s*spanning-tree portfast bpduguard default\b'
+      - '^\s*spanning-tree bpduguard enable\b'
+    remediation: 'Enable BPDU Guard on edge ports.'
+    fix_type: Quick
+    manual_hint: 'Confirm BPDU Guard is enabled and PortFast used only on access ports.'
+
+  - id: CIS-CISCO-L2-002
+    name: 'PortFast is enabled on access ports (manual)'
+    check: manual
+    manual_hint: 'Verify spanning-tree portfast is enabled on access interfaces only.'
+    remediation: 'Enable PortFast on access ports to improve convergence; do not enable on trunk/uplink ports.'
+    fix_type: Involved
+
+  - id: CIS-CISCO-L2-003
+    name: 'DHCP Snooping is enabled (manual / platform dependent)'
+    check: either_or
+    patterns:
+      - '^\s*ip dhcp snooping\b'
+    remediation: 'Enable DHCP Snooping and trust only uplinks to DHCP servers.'
+    fix_type: Involved
+    manual_hint: 'Verify snooping VLANs, trusted ports, and rate limits.'
+
+  - id: CIS-CISCO-L2-004
+    name: 'Dynamic ARP Inspection is enabled (manual / requires DHCP snooping)'
+    check: either_or
+    patterns:
+      - '^\s*ip arp inspection\b'
+    remediation: 'Enable DAI on user VLANs to mitigate ARP spoofing.'
+    fix_type: Involved
+    manual_hint: 'Verify inspection VLANs and trusted uplink ports.'
+
+  - id: CIS-CISCO-L2-005
+    name: 'Storm control is configured on access ports (manual)'
+    check: manual
+    manual_hint: 'Verify storm-control broadcast/multicast/unicast is configured on access ports per standard.'
+    remediation: 'Enable storm-control thresholds to limit broadcast/multicast storms.'
+    fix_type: Involved
+
+  - id: CIS-CISCO-L2-006
+    name: 'Port-security is configured on access ports (manual)'
+    check: manual
+    manual_hint: 'Verify switchport port-security with max MAC, violation action, and sticky where appropriate.'
+    remediation: 'Enable port-security on access ports to prevent unauthorized MACs.'
+    fix_type: Involved
+
+  - id: CIS-CISCO-L2-007
+    name: 'Native VLAN is not VLAN 1 on trunks (manual)'
+    check: manual
+    manual_hint: 'Verify trunk native VLAN is a dedicated unused VLAN and VLAN 1 is not used for user traffic.'
+    remediation: 'Change trunk native VLAN from VLAN 1 and prune unused VLANs from trunks.'
+    fix_type: Planned
+
+  - id: CIS-CISCO-L2-008
+    name: 'Unused switch ports are disabled (manual)'
+    check: manual
+    manual_hint: 'Verify unused interfaces are shutdown and placed into an unused VLAN.'
+    remediation: 'Administratively shut down unused ports and assign to an unused VLAN.'
+    fix_type: Involved
